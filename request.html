@@ -107,10 +107,11 @@
   // ====== KONFIGURASI (WAJIB DIGANTI SEBELUM DEPLOY) ======
   const SUBMIT_BASE_URL = 'https://GANTI-DOMAIN-N8N-LU/webhook/webapp';
 
-  // ====== Tentuin jenis surat dari query string ======
-  // ?jenis=nomorsurat  ATAU  ?jenis=notdin
-  const urlParams = new URLSearchParams(window.location.search);
-  const jenis = (urlParams.get('jenis') || '').toLowerCase();
+  // ====== Tentuin jenis surat dari PATH URL (bukan query string) ======
+  // Vercel rewrite ga expose query tujuan ke browser, jadi baca dari pathname
+  // yang emang keliatan asli di address bar: /nomorsurat atau /notdin
+  const pathMap = { '/nomorsurat': 'nomorsurat', '/notdin': 'notdin' };
+  const jenis = pathMap[window.location.pathname.replace(/\/$/, '')] || '';
   const labelMap = { nomorsurat: 'Surat Keluar', notdin: 'Nota Dinas' };
 
   const tg = window.Telegram && window.Telegram.WebApp;
@@ -124,17 +125,6 @@
   // Keamanan sebenarnya divalidasi di server (HMAC initData) pas submit.
   if (!labelMap[jenis] || !tg || !tg.initData) {
     tampilkanBlocked();
-    // DEBUG SEMENTARA - hapus blok ini kalau udah beres
-    document.getElementById('blocked').innerHTML += `
-      <div style="text-align:left; background:#f4f4f5; padding:12px; border-radius:8px; font-size:12px; margin-top:20px; word-break:break-all;">
-        <b>Debug info:</b><br>
-        jenis dari URL: "${jenis}"<br>
-        labelMap valid: ${!!labelMap[jenis]}<br>
-        window.Telegram ada: ${!!window.Telegram}<br>
-        Telegram.WebApp ada: ${!!tg}<br>
-        initData length: ${tg ? (tg.initData || '').length : 'N/A'}<br>
-        Full URL: ${window.location.href}
-      </div>`;
   } else {
     tg.ready();
     tg.expand();
