@@ -105,7 +105,7 @@
 
 <script>
   // ====== KONFIGURASI (WAJIB DIGANTI SEBELUM DEPLOY) ======
-  const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook-test/a1e7646b-ac3c-47fe-94b5-f8dd45cdf11c/webapp/:jenis/submit';
+  const SUBMIT_BASE_URL = 'https://GANTI-DOMAIN-N8N-LU/webhook/webapp';
 
   // ====== Tentuin jenis surat dari query string ======
   // ?jenis=nomorsurat  ATAU  ?jenis=notdin
@@ -124,6 +124,17 @@
   // Keamanan sebenarnya divalidasi di server (HMAC initData) pas submit.
   if (!labelMap[jenis] || !tg || !tg.initData) {
     tampilkanBlocked();
+    // DEBUG SEMENTARA - hapus blok ini kalau udah beres
+    document.getElementById('blocked').innerHTML += `
+      <div style="text-align:left; background:#f4f4f5; padding:12px; border-radius:8px; font-size:12px; margin-top:20px; word-break:break-all;">
+        <b>Debug info:</b><br>
+        jenis dari URL: "${jenis}"<br>
+        labelMap valid: ${!!labelMap[jenis]}<br>
+        window.Telegram ada: ${!!window.Telegram}<br>
+        Telegram.WebApp ada: ${!!tg}<br>
+        initData length: ${tg ? (tg.initData || '').length : 'N/A'}<br>
+        Full URL: ${window.location.href}
+      </div>`;
   } else {
     tg.ready();
     tg.expand();
