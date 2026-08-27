@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/nomorsurat", "destination": "/request.html?jenis=nomorsurat" },
+    { "source": "/notdin", "destination": "/request.html?jenis=notdin" }
+  ]
+}
