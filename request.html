@@ -5,107 +5,147 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>LONTAR - Permintaan Nomor Surat</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#16323F',
+          brass: '#C9A227',
+          brassdark: '#9c7e1b',
+          paper: '#F7F4EC',
+          paperline: '#E7E0CE'
+        },
+        fontFamily: {
+          sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          display: ['"Fraunces"', 'serif']
+        }
+      }
+    }
+  }
+</script>
 <style>
-  :root {
-    --bg: var(--tg-theme-bg-color, #ffffff);
-    --text: var(--tg-theme-text-color, #1a1a1a);
-    --hint: var(--tg-theme-hint-color, #999999);
-    --btn: var(--tg-theme-button-color, #2481cc);
-    --btn-text: var(--tg-theme-button-text-color, #ffffff);
-    --secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+  body { background: #F7F4EC; }
+  .paper-texture {
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(22,50,63,0.05) 1px, transparent 0);
+    background-size: 14px 14px;
   }
-  * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    margin: 0;
-    padding: 16px 16px 32px;
+  .fold-corner {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 24px 100%, 0 calc(100% - 24px));
   }
-  h2 { font-size: 19px; margin: 4px 0 2px; }
-  .sub { color: var(--hint); font-size: 13px; margin-bottom: 20px; }
-  .badge {
-    display: inline-block;
-    background: var(--secondary-bg);
-    color: var(--text);
-    font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    margin-bottom: 10px;
+  .fold-corner::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 0 0 24px 24px;
+    border-color: transparent transparent #E7E0CE transparent;
   }
-  label { display: block; font-size: 13px; margin-top: 16px; margin-bottom: 6px; font-weight: 600; }
-  input, textarea {
-    width: 100%;
-    padding: 11px 12px;
-    border-radius: 10px;
-    border: 1px solid #d8d8dc;
-    font-size: 15px;
-    background: var(--secondary-bg);
-    color: var(--text);
+  .seal {
+    background: repeating-conic-gradient(#C9A227 0deg 8deg, #b8920f 8deg 16deg);
+    -webkit-mask: radial-gradient(circle, transparent 62%, black 63%);
+            mask: radial-gradient(circle, transparent 62%, black 63%);
   }
-  textarea { resize: vertical; min-height: 72px; font-family: inherit; }
-  button {
-    margin-top: 26px;
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    background: var(--btn);
-    color: var(--btn-text);
-    font-size: 16px;
-    font-weight: 600;
-  }
-  button:disabled { opacity: 0.6; }
-  #status {
-    margin-top: 14px;
-    font-size: 14px;
-    text-align: center;
-    min-height: 18px;
-  }
-  #status.error { color: #d33; }
-  #status.success { color: #1a9e4b; }
-  #blocked {
-    display: none;
-    text-align: center;
-    padding: 60px 20px;
-  }
-  #blocked h3 { font-size: 17px; }
-  #blocked p { color: var(--hint); font-size: 14px; }
+  .status-enter { animation: statusEnter .25s ease-out; }
+  @keyframes statusEnter { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
+  input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(201,162,39,0.25); border-color:#C9A227; }
 </style>
 </head>
-<body>
+<body class="font-sans text-ink min-h-screen">
 
-  <div id="app">
-    <span class="badge" id="jenisBadge">Memuat...</span>
-    <h2 id="judul">Form Permintaan Nomor</h2>
-    <div class="sub">LONTAR Bot &mdash; Disbudpar Jatim</div>
+  <div id="app" class="min-h-screen flex flex-col">
 
-    <form id="reqForm">
-      <label>Perihal Surat</label>
-      <input type="text" id="perihal" required placeholder="cth: Undangan Rapat Koordinasi">
+    <!-- Header -->
+    <header class="relative bg-ink text-paper px-6 pt-8 pb-14 overflow-hidden">
+      <div class="absolute inset-0 opacity-10 paper-texture"></div>
+      <div class="relative flex items-center gap-3">
+        <div class="relative w-11 h-11 shrink-0">
+          <div class="seal absolute inset-0 rounded-full"></div>
+          <div class="absolute inset-[3px] rounded-full bg-ink flex items-center justify-center">
+            <span class="font-display text-brass text-[10px] font-semibold tracking-wide leading-none text-center" id="sealText">SK</span>
+          </div>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.2em] text-brass/80 font-semibold">LONTAR</p>
+          <p class="text-[11px] text-paper/60 -mt-0.5">Layanan Nomor Surat Disbudpar Jatim</p>
+        </div>
+      </div>
+      <h1 class="relative font-display text-2xl mt-6 leading-snug" id="judul">Permintaan Nomor Surat</h1>
+      <p class="relative text-paper/60 text-[13px] mt-1" id="subJudul">Lengkapi rincian surat di bawah ini</p>
+    </header>
 
-      <label>Tujuan Surat</label>
-      <input type="text" id="tujuan" required placeholder="cth: Kepala Dinas Pariwisata Kab. X">
+    <!-- Form Card -->
+    <main class="relative -mt-8 px-5 pb-10 flex-1">
+      <div class="relative bg-white rounded-2xl shadow-[0_8px_30px_rgba(22,50,63,0.12)] border border-paperline fold-corner">
+        <form id="reqForm" class="p-6 space-y-5">
 
-      <label>Tanggal Surat</label>
-      <input type="date" id="tanggalSurat" required>
+          <div>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Perihal Surat</label>
+            <input type="text" id="perihal" required
+              placeholder="cth: Undangan Rapat Koordinasi"
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
+          </div>
 
-      <label>Catatan (opsional)</label>
-      <textarea id="catatan" placeholder="Catatan tambahan"></textarea>
+          <div>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Tujuan Surat</label>
+            <input type="text" id="tujuan" required
+              placeholder="cth: Kepala Dinas Pariwisata Kab. X"
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
+          </div>
 
-      <button type="submit" id="submitBtn">Kirim Permintaan</button>
-    </form>
-    <div id="status"></div>
+          <div>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Tanggal Surat</label>
+            <input type="date" id="tanggalSurat" required
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
+          </div>
+
+          <div>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">
+              Catatan <span class="font-normal text-ink/40">(opsional)</span>
+            </label>
+            <textarea id="catatan" rows="3"
+              placeholder="Catatan tambahan untuk admin"
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] resize-none transition-shadow"></textarea>
+          </div>
+
+          <button type="submit" id="submitBtn"
+            class="w-full mt-2 bg-ink text-paper font-semibold py-3.5 rounded-xl text-[15px] tracking-wide
+                   hover:bg-ink/90 active:scale-[0.98] transition disabled:opacity-50 disabled:active:scale-100
+                   flex items-center justify-center gap-2">
+            <span>Kirim Permintaan</span>
+          </button>
+        </form>
+      </div>
+
+      <div id="status" class="mt-4 text-center text-[13px] font-medium min-h-[20px]"></div>
+
+      <p class="text-center text-[11px] text-ink/35 mt-6">
+        Nomor akan diproses otomatis &amp; dikirim kembali melalui bot
+      </p>
+    </main>
   </div>
 
-  <div id="blocked">
-    <h3>🔒 Akses Ditolak</h3>
-    <p>Halaman ini hanya bisa diakses melalui LONTAR Bot di Telegram.</p>
+  <!-- Blocked state -->
+  <div id="blocked" class="hidden min-h-screen flex flex-col items-center justify-center px-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-ink/5 flex items-center justify-center mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-ink/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+    </div>
+    <h3 class="font-display text-lg text-ink">Akses Terbatas</h3>
+    <p class="text-ink/50 text-[13px] mt-1.5 leading-relaxed">
+      Halaman ini hanya bisa dibuka lewat menu<br>LONTAR Bot di Telegram.
+    </p>
   </div>
 
 <script>
   // ====== KONFIGURASI (WAJIB DIGANTI SEBELUM DEPLOY) ======
-  const SUBMIT_BASE_URL = 'https://GANTI-DOMAIN-N8N-LU/webhook/webapp';
+  const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook-test/a1e7646b-ac3c-47fe-94b5-f8dd45cdf11c/webapp/:jenis/submit';
 
   // ====== Tentuin jenis surat dari PATH URL (bukan query string) ======
   // Vercel rewrite ga expose query tujuan ke browser, jadi baca dari pathname
@@ -113,12 +153,13 @@
   const pathMap = { '/nomorsurat': 'nomorsurat', '/notdin': 'notdin' };
   const jenis = pathMap[window.location.pathname.replace(/\/$/, '')] || '';
   const labelMap = { nomorsurat: 'Surat Keluar', notdin: 'Nota Dinas' };
+  const sealMap = { nomorsurat: 'SK', notdin: 'ND' };
 
   const tg = window.Telegram && window.Telegram.WebApp;
 
   function tampilkanBlocked() {
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('blocked').style.display = 'block';
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('blocked').classList.remove('hidden');
   }
 
   // CATATAN: ini cuma UX gate di client, BUKAN keamanan.
@@ -128,16 +169,18 @@
   } else {
     tg.ready();
     tg.expand();
+    if (tg.setHeaderColor) tg.setHeaderColor('#16323F');
 
-    document.getElementById('jenisBadge').textContent = labelMap[jenis];
     document.getElementById('judul').textContent = `Permintaan Nomor ${labelMap[jenis]}`;
+    document.getElementById('subJudul').textContent = `Form pengajuan ${labelMap[jenis]} \u2014 lengkapi rincian di bawah`;
+    document.getElementById('sealText').textContent = sealMap[jenis];
 
     document.getElementById('reqForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       const statusEl = document.getElementById('status');
       const btn = document.getElementById('submitBtn');
-      statusEl.className = '';
-      statusEl.textContent = 'Mengirim...';
+      statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter';
+      statusEl.textContent = 'Mengirim permintaan...';
       btn.disabled = true;
 
       const payload = {
@@ -157,18 +200,18 @@
         const data = await res.json();
 
         if (data.success) {
-          statusEl.className = 'success';
+          statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-emerald-700';
           statusEl.textContent = data.message || 'Berhasil! Nomor akan dikirim via bot.';
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
           setTimeout(() => tg.close(), 1500);
         } else {
-          statusEl.className = 'error';
+          statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-rose-700';
           statusEl.textContent = data.message || 'Gagal mengirim permintaan.';
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
           btn.disabled = false;
         }
       } catch (err) {
-        statusEl.className = 'error';
+        statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-rose-700';
         statusEl.textContent = 'Gagal terhubung ke server. Coba lagi.';
         btn.disabled = false;
       }
