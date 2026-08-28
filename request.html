@@ -8,6 +8,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
   tailwind.config = {
     theme: {
@@ -46,14 +48,24 @@
     border-width: 0 0 24px 24px;
     border-color: transparent transparent #E7E0CE transparent;
   }
-  .seal {
-    background: repeating-conic-gradient(#C9A227 0deg 8deg, #b8920f 8deg 16deg);
-    -webkit-mask: radial-gradient(circle, transparent 62%, black 63%);
-            mask: radial-gradient(circle, transparent 62%, black 63%);
-  }
   .status-enter { animation: statusEnter .25s ease-out; }
   @keyframes statusEnter { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
   input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(201,162,39,0.25); border-color:#C9A227; }
+
+  /* Flatpickr theme override */
+  .flatpickr-calendar { font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 8px 30px rgba(22,50,63,0.18); border-radius: 14px; }
+  .flatpickr-months, .flatpickr-current-month { background: #16323F; border-radius: 14px 14px 0 0; }
+  .flatpickr-current-month .flatpickr-monthDropdown-months, .flatpickr-current-month input.cur-year { color: #F7F4EC; }
+  .flatpickr-weekday { color: #16323F99; }
+  .flatpickr-day.selected, .flatpickr-day.selected:hover { background: #C9A227; border-color: #C9A227; }
+  .flatpickr-day.today { border-color: #C9A227; }
+  span.flatpickr-weekday, .flatpickr-current-month span.cur-month { font-weight: 600; }
+  .numInputWrapper span { display:none; }
+
+  /* Combobox dropdown */
+  .combo-item:hover { background: #F7F4EC; }
+  .skeleton { background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>
 </head>
 <body class="font-sans text-ink min-h-screen">
@@ -63,19 +75,9 @@
     <!-- Header -->
     <header class="relative bg-ink text-paper px-6 pt-8 pb-14 overflow-hidden">
       <div class="absolute inset-0 opacity-10 paper-texture"></div>
-      <div class="relative flex items-center gap-3">
-        <div class="relative w-11 h-11 shrink-0">
-          <div class="seal absolute inset-0 rounded-full"></div>
-          <div class="absolute inset-[3px] rounded-full bg-ink flex items-center justify-center">
-            <span class="font-display text-brass text-[10px] font-semibold tracking-wide leading-none text-center" id="sealText">SK</span>
-          </div>
-        </div>
-        <div>
-          <p class="text-[11px] uppercase tracking-[0.2em] text-brass/80 font-semibold">LONTAR</p>
-          <p class="text-[11px] text-paper/60 -mt-0.5">Layanan Nomor Surat Disbudpar Jatim</p>
-        </div>
-      </div>
-      <h1 class="relative font-display text-2xl mt-6 leading-snug" id="judul">Permintaan Nomor Surat</h1>
+      <p class="relative text-[11px] uppercase tracking-[0.2em] text-brass/80 font-semibold">LONTAR</p>
+      <p class="relative text-[11px] text-paper/60 -mt-0.5">Layanan Nomor Surat Disbudpar Jatim</p>
+      <h1 class="relative font-display text-2xl mt-5 leading-snug" id="judul">Permintaan Nomor Surat</h1>
       <p class="relative text-paper/60 text-[13px] mt-1" id="subJudul">Lengkapi rincian surat di bawah ini</p>
     </header>
 
@@ -83,6 +85,27 @@
     <main class="relative -mt-8 px-5 pb-10 flex-1">
       <div class="relative bg-white rounded-2xl shadow-[0_8px_30px_rgba(22,50,63,0.12)] border border-paperline fold-corner">
         <form id="reqForm" class="p-6 space-y-5">
+
+          <!-- Nama Pemohon - auto, readonly -->
+          <div>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Nama Pemohon</label>
+            <div id="namaLoading" class="h-[46px] rounded-xl skeleton"></div>
+            <input type="text" id="namaPemohon" readonly
+              class="hidden w-full px-4 py-3 rounded-xl border border-ink/10 bg-paper/60 text-[15px] text-ink/70">
+            <p id="nipCaption" class="hidden text-[11px] text-ink/40 mt-1 ml-1"></p>
+          </div>
+
+          <!-- Kode Klasifikasi - searchable combobox -->
+          <div class="relative">
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Kode Klasifikasi</label>
+            <input type="text" id="klasifikasiSearch" required autocomplete="off"
+              placeholder="Cari kode atau deskripsi..."
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
+            <input type="hidden" id="klasifikasiValue">
+            <div id="klasifikasiDropdown"
+              class="hidden absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-ink/10 rounded-xl shadow-lg">
+            </div>
+          </div>
 
           <div>
             <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Perihal Surat</label>
@@ -92,7 +115,7 @@
           </div>
 
           <div>
-            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Tujuan Surat</label>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Kepada</label>
             <input type="text" id="tujuan" required
               placeholder="cth: Kepala Dinas Pariwisata Kab. X"
               class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
@@ -100,8 +123,9 @@
 
           <div>
             <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Tanggal Surat</label>
-            <input type="date" id="tanggalSurat" required
-              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
+            <input type="text" id="tanggalSurat" required readonly
+              placeholder="Pilih tanggal"
+              class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow cursor-pointer">
           </div>
 
           <div>
@@ -113,11 +137,11 @@
               class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] resize-none transition-shadow"></textarea>
           </div>
 
-          <button type="submit" id="submitBtn"
+          <button type="submit" id="submitBtn" disabled
             class="w-full mt-2 bg-ink text-paper font-semibold py-3.5 rounded-xl text-[15px] tracking-wide
                    hover:bg-ink/90 active:scale-[0.98] transition disabled:opacity-50 disabled:active:scale-100
                    flex items-center justify-center gap-2">
-            <span>Kirim Permintaan</span>
+            <span id="submitBtnText">Memuat data...</span>
           </button>
         </form>
       </div>
@@ -148,22 +172,98 @@
   const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook-test/a1e7646b-ac3c-47fe-94b5-f8dd45cdf11c/webapp/:jenis/submit';
 
   // ====== Tentuin jenis surat dari PATH URL (bukan query string) ======
-  // Vercel rewrite ga expose query tujuan ke browser, jadi baca dari pathname
-  // yang emang keliatan asli di address bar: /nomorsurat atau /notdin
   const pathMap = { '/nomorsurat': 'nomorsurat', '/notdin': 'notdin' };
   const jenis = pathMap[window.location.pathname.replace(/\/$/, '')] || '';
   const labelMap = { nomorsurat: 'Surat Keluar', notdin: 'Nota Dinas' };
-  const sealMap = { nomorsurat: 'SK', notdin: 'ND' };
 
   const tg = window.Telegram && window.Telegram.WebApp;
+  let klasifikasiList = [];
 
   function tampilkanBlocked() {
     document.getElementById('app').classList.add('hidden');
     document.getElementById('blocked').classList.remove('hidden');
   }
 
-  // CATATAN: ini cuma UX gate di client, BUKAN keamanan.
-  // Keamanan sebenarnya divalidasi di server (HMAC initData) pas submit.
+  function setupKlasifikasiCombobox() {
+    const searchInput = document.getElementById('klasifikasiSearch');
+    const hiddenValue = document.getElementById('klasifikasiValue');
+    const dropdown = document.getElementById('klasifikasiDropdown');
+
+    function renderList(items) {
+      if (!items.length) {
+        dropdown.innerHTML = `<div class="px-4 py-3 text-[13px] text-ink/40">Tidak ada hasil</div>`;
+        dropdown.classList.remove('hidden');
+        return;
+      }
+      dropdown.innerHTML = items.slice(0, 50).map(item => `
+        <div class="combo-item px-4 py-2.5 cursor-pointer border-b border-ink/5 last:border-0"
+             data-kode="${item.kode}" data-deskripsi="${(item.deskripsi || '').replace(/"/g,'&quot;')}">
+          <p class="text-[13px] font-semibold text-ink">${item.kode}</p>
+          <p class="text-[12px] text-ink/50">${item.deskripsi || ''}</p>
+        </div>
+      `).join('');
+      dropdown.classList.remove('hidden');
+
+      dropdown.querySelectorAll('.combo-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const kode = el.dataset.kode;
+          const deskripsi = el.dataset.deskripsi;
+          searchInput.value = `${kode} \u2014 ${deskripsi}`;
+          hiddenValue.value = kode;
+          dropdown.classList.add('hidden');
+        });
+      });
+    }
+
+    searchInput.addEventListener('focus', () => renderList(klasifikasiList));
+    searchInput.addEventListener('input', () => {
+      hiddenValue.value = '';
+      const q = searchInput.value.toLowerCase();
+      const filtered = klasifikasiList.filter(item =>
+        item.kode.toLowerCase().includes(q) || (item.deskripsi || '').toLowerCase().includes(q)
+      );
+      renderList(filtered);
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#klasifikasiSearch') && !e.target.closest('#klasifikasiDropdown')) {
+        dropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  async function loadInitData() {
+    try {
+      const res = await fetch(`${SUBMIT_BASE_URL}/${jenis}/init?initData=${encodeURIComponent(tg.initData)}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        document.getElementById('status').className = 'mt-4 text-center text-[13px] font-medium text-rose-700';
+        document.getElementById('status').textContent = data.message || 'Gagal memuat data.';
+        return;
+      }
+
+      document.getElementById('namaLoading').classList.add('hidden');
+      const namaEl = document.getElementById('namaPemohon');
+      namaEl.value = data.nama || '-';
+      namaEl.classList.remove('hidden');
+      if (data.nip) {
+        const nipEl = document.getElementById('nipCaption');
+        nipEl.textContent = `NIP. ${data.nip}`;
+        nipEl.classList.remove('hidden');
+      }
+
+      klasifikasiList = data.klasifikasi || [];
+      setupKlasifikasiCombobox();
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = false;
+      document.getElementById('submitBtnText').textContent = 'Kirim Permintaan';
+    } catch (err) {
+      document.getElementById('status').className = 'mt-4 text-center text-[13px] font-medium text-rose-700';
+      document.getElementById('status').textContent = 'Gagal terhubung ke server.';
+    }
+  }
+
   if (!labelMap[jenis] || !tg || !tg.initData) {
     tampilkanBlocked();
   } else {
@@ -173,10 +273,24 @@
 
     document.getElementById('judul').textContent = `Permintaan Nomor ${labelMap[jenis]}`;
     document.getElementById('subJudul').textContent = `Form pengajuan ${labelMap[jenis]} \u2014 lengkapi rincian di bawah`;
-    document.getElementById('sealText').textContent = sealMap[jenis];
+
+    flatpickr('#tanggalSurat', {
+      dateFormat: 'd-m-Y',
+      disableMobile: true,
+      altInput: false
+    });
+
+    loadInitData();
 
     document.getElementById('reqForm').addEventListener('submit', async function (e) {
       e.preventDefault();
+
+      if (!document.getElementById('klasifikasiValue').value) {
+        document.getElementById('status').className = 'mt-4 text-center text-[13px] font-medium text-rose-700 status-enter';
+        document.getElementById('status').textContent = 'Pilih kode klasifikasi dari daftar.';
+        return;
+      }
+
       const statusEl = document.getElementById('status');
       const btn = document.getElementById('submitBtn');
       statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter';
@@ -185,6 +299,7 @@
 
       const payload = {
         initData: tg.initData,
+        kodeKlasifikasi: document.getElementById('klasifikasiValue').value,
         perihal: document.getElementById('perihal').value,
         tujuan: document.getElementById('tujuan').value,
         tanggalSurat: document.getElementById('tanggalSurat').value,
