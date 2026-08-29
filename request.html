@@ -70,7 +70,39 @@
 </head>
 <body class="font-sans text-ink min-h-screen">
 
-  <div id="app" class="min-h-screen flex flex-col">
+  <!-- Loading state -->
+  <div id="loadingState" class="min-h-screen flex flex-col items-center justify-center px-8 text-center">
+    <div class="w-10 h-10 border-4 border-ink/10 border-t-brass rounded-full animate-spin mb-4"></div>
+    <p class="text-ink/50 text-[13px]">Menghubungkan ke server...</p>
+  </div>
+
+  <!-- Error state -->
+  <div id="errorState" class="hidden min-h-screen flex flex-col items-center justify-center px-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <h3 class="font-display text-lg text-ink">Gagal Terhubung</h3>
+    <p id="errorMsg" class="text-ink/50 text-[13px] mt-1.5 leading-relaxed">Tidak bisa menghubungi server.</p>
+    <button id="retryBtn" type="button" class="mt-5 px-5 py-2.5 bg-ink text-paper rounded-xl text-[13px] font-semibold active:scale-[0.98] transition">Coba Lagi</button>
+  </div>
+
+  <!-- Blocked state (bukan dibuka lewat Telegram) -->
+  <div id="blocked" class="hidden min-h-screen flex flex-col items-center justify-center px-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-ink/5 flex items-center justify-center mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-ink/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+    </div>
+    <h3 class="font-display text-lg text-ink">Akses Terbatas</h3>
+    <p class="text-ink/50 text-[13px] mt-1.5 leading-relaxed">
+      Halaman ini hanya bisa dibuka lewat menu<br>LONTAR Bot di Telegram.
+    </p>
+  </div>
+
+  <!-- Main app (form) -->
+  <div id="app" class="hidden min-h-screen flex flex-col">
 
     <!-- Header -->
     <header class="relative bg-ink text-paper px-6 pt-8 pb-14 overflow-hidden">
@@ -154,23 +186,9 @@
     </main>
   </div>
 
-  <!-- Blocked state -->
-  <div id="blocked" class="hidden min-h-screen flex flex-col items-center justify-center px-8 text-center">
-    <div class="w-16 h-16 rounded-full bg-ink/5 flex items-center justify-center mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-ink/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-      </svg>
-    </div>
-    <h3 class="font-display text-lg text-ink">Akses Terbatas</h3>
-    <p class="text-ink/50 text-[13px] mt-1.5 leading-relaxed">
-      Halaman ini hanya bisa dibuka lewat menu<br>LONTAR Bot di Telegram.
-    </p>
-  </div>
-
 <script>
-  // ====== KONFIGURASI (WAJIB DIGANTI SEBELUM DEPLOY) ======
- const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook/3af161b8-5ef5-4e88-abec-1866d538b983/webapp';
-  
+  // ====== KONFIGURASI ======
+  const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook/3af161b8-5ef5-4e88-abec-1866d538b983/webapp';
 
   // ====== Tentuin jenis surat dari PATH URL (bukan query string) ======
   const pathMap = { '/nomorsurat': 'nomorsurat', '/notdin': 'notdin' };
@@ -180,9 +198,33 @@
   const tg = window.Telegram && window.Telegram.WebApp;
   let klasifikasiList = [];
 
+  // ====== Kontrol tampilan 4 state: loading / error / blocked / app ======
+  function tampilkanLoading() {
+    document.getElementById('loadingState').classList.remove('hidden');
+    document.getElementById('errorState').classList.add('hidden');
+    document.getElementById('blocked').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+  }
+
+  function tampilkanError(msg) {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('errorMsg').textContent = msg || 'Tidak bisa menghubungi server.';
+    document.getElementById('errorState').classList.remove('hidden');
+  }
+
   function tampilkanBlocked() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorState').classList.add('hidden');
     document.getElementById('app').classList.add('hidden');
     document.getElementById('blocked').classList.remove('hidden');
+  }
+
+  function tampilkanForm() {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorState').classList.add('hidden');
+    document.getElementById('blocked').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
   }
 
   function setupKlasifikasiCombobox() {
@@ -233,15 +275,17 @@
   }
 
   async function loadInitData() {
+    tampilkanLoading();
     try {
       const res = await fetch(`${SUBMIT_BASE_URL}/${jenis}/init?initData=${encodeURIComponent(tg.initData)}`);
       const data = await res.json();
 
       if (!data.success) {
-        document.getElementById('status').className = 'mt-4 text-center text-[13px] font-medium text-rose-700';
-        document.getElementById('status').textContent = data.message || 'Gagal memuat data.';
+        tampilkanError(data.message || 'Gagal memuat data.');
         return;
       }
+
+      tampilkanForm();
 
       document.getElementById('namaLoading').classList.add('hidden');
       const namaEl = document.getElementById('namaPemohon');
@@ -260,10 +304,11 @@
       btn.disabled = false;
       document.getElementById('submitBtnText').textContent = 'Kirim Permintaan';
     } catch (err) {
-      document.getElementById('status').className = 'mt-4 text-center text-[13px] font-medium text-rose-700';
-      document.getElementById('status').textContent = 'Gagal terhubung ke server.';
+      tampilkanError('Gagal terhubung ke server. Coba lagi.');
     }
   }
+
+  document.getElementById('retryBtn').addEventListener('click', loadInitData);
 
   if (!labelMap[jenis] || !tg || !tg.initData) {
     tampilkanBlocked();
