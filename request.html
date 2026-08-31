@@ -289,7 +289,7 @@
 
       document.getElementById('namaLoading').classList.add('hidden');
       const namaEl = document.getElementById('namaPemohon');
-      namaEl.value = data.nama || JSON.stringify(data.DEBUG_pegawai_mentah || data);
+      namaEl.value = data.nama;
       namaEl.classList.remove('hidden');
       if (data.nip) {
         const nipEl = document.getElementById('nipCaption');
