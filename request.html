@@ -198,7 +198,8 @@
   </div>
 
 <script>
-  const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook/3af161b8-5ef5-4e88-abec-1866d538b983/webapp';
+  const INIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook/3af161b8-5ef5-4e88-abec-1866d538b983/webapp';
+  const SUBMIT_BASE_URL = 'https://n8n-x2nz2cb1nmpt.blueberry.sumopod.my.id/webhook/9020983b-1bfe-4cc4-946c-efd39eb773e1/webapp';
   const MAX_LAMPIRAN_BYTES = 2 * 1024 * 1024; // 2MB
 
   const pathMap = { '/nomorsurat': 'nomorsurat', '/notdin': 'notdin' };
@@ -449,7 +450,7 @@
   async function loadInitData() {
     tampilkanLoading();
     try {
-      const res = await fetch(`${SUBMIT_BASE_URL}/${jenis}/init?initData=${encodeURIComponent(tg.initData)}`);
+      const res = await fetch(`${INIT_BASE_URL}/${jenis}/init?initData=${encodeURIComponent(tg.initData)}`);
       const data = await res.json();
 
       if (!data.success) {
@@ -534,12 +535,26 @@
         payload.lampiranBase64 = await bacaFileSebagaiBase64(lampiranFile);
         statusEl.textContent = 'Mengirim permintaan...';
 
+        const formBody = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => formBody.append(key, value ?? ''));
+
         const res = await fetch(`${SUBMIT_BASE_URL}/${jenis}/submit`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: formBody.toString()
         });
-        const data = await res.json();
+
+        const responseText = await res.text();
+        let data;
+        try {
+          data = responseText ? JSON.parse(responseText) : {};
+        } catch (_) {
+          throw new Error(`Server merespons ${res.status}: ${responseText.slice(0, 200)}`);
+        }
+
+        if (!res.ok && !data.message) {
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         if (data.success) {
           statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-emerald-700';
@@ -554,7 +569,8 @@
         }
       } catch (err) {
         statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-rose-700';
-        statusEl.textContent = 'Gagal terhubung ke server. Coba lagi.';
+        statusEl.textContent = err?.message || 'Gagal terhubung ke server. Coba lagi.';
+        console.error('LONTAR submit error:', err);
         btn.disabled = false;
       }
     });
