@@ -141,7 +141,7 @@
           </div>
 
           <div>
-            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Kepada</label>
+            <label class="block text-[13px] font-semibold text-ink/80 mb-1.5">Kepada/Tujuan</label>
             <input type="text" id="tujuan"
               placeholder="cth: Kepala Dinas Pariwisata Kab. X"
               class="w-full px-4 py-3 rounded-xl border border-ink/15 bg-paper/40 text-[15px] transition-shadow">
@@ -184,6 +184,7 @@
             class="w-full mt-2 bg-ink text-paper font-semibold py-3.5 rounded-xl text-[15px] tracking-wide
                    hover:bg-ink/90 active:scale-[0.98] transition disabled:opacity-50 disabled:active:scale-100
                    flex items-center justify-center gap-2">
+            <span id="submitSpinner" class="hidden w-4 h-4 border-2 border-paper/30 border-t-paper rounded-full animate-spin"></span>
             <span id="submitBtnText">Memuat data...</span>
           </button>
         </form>
@@ -195,6 +196,27 @@
         Nomor akan diproses otomatis &amp; dikirim kembali melalui bot
       </p>
     </main>
+  </div>
+
+  <div id="resultModal" class="hidden fixed inset-0 z-50 bg-ink/50 backdrop-blur-[2px] flex items-center justify-center px-6">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center status-enter">
+      <div id="modalIconSukses" class="hidden w-14 h-14 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div id="modalIconError" class="hidden w-14 h-14 mx-auto rounded-full bg-rose-50 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <h3 id="modalTitle" class="font-display text-lg text-ink">Judul</h3>
+      <p id="modalMessage" class="text-ink/55 text-[13px] mt-1.5 leading-relaxed"></p>
+      <button id="modalOkBtn" type="button"
+        class="mt-5 w-full bg-ink text-paper font-semibold py-3 rounded-xl text-[14px] active:scale-[0.98] transition">
+        OK
+      </button>
+    </div>
   </div>
 
 <script>
@@ -236,6 +258,45 @@
     document.getElementById('errorState').classList.add('hidden');
     document.getElementById('blocked').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+  }
+
+  function judulErrorDariStatus(status) {
+    if (status === null || status === undefined) return 'Gagal Terhubung';
+    const petaJudul = {
+      401: 'Sesi Tidak Valid',
+      403: 'Akses Ditolak',
+      404: 'Tidak Ditemukan'
+    };
+    return petaJudul[status] || 'Terjadi Kesalahan';
+  }
+
+  function tampilkanModal({ variant = 'error', title, message, tombolText = 'OK', onOk } = {}) {
+    const overlay = document.getElementById('resultModal');
+    const iconSukses = document.getElementById('modalIconSukses');
+    const iconError = document.getElementById('modalIconError');
+    const titleEl = document.getElementById('modalTitle');
+    const msgEl = document.getElementById('modalMessage');
+    const okBtn = document.getElementById('modalOkBtn');
+
+    iconSukses.classList.toggle('hidden', variant !== 'success');
+    iconError.classList.toggle('hidden', variant !== 'error');
+
+    okBtn.className = variant === 'success'
+      ? 'mt-5 w-full bg-emerald-600 text-white font-semibold py-3 rounded-xl text-[14px] active:scale-[0.98] transition'
+      : 'mt-5 w-full bg-ink text-paper font-semibold py-3 rounded-xl text-[14px] active:scale-[0.98] transition';
+
+    titleEl.textContent = title || (variant === 'success' ? 'Berhasil' : 'Terjadi Kesalahan');
+    msgEl.textContent = message || '';
+    okBtn.textContent = tombolText;
+
+    overlay.classList.remove('hidden');
+
+    const handler = () => {
+      overlay.classList.add('hidden');
+      okBtn.removeEventListener('click', handler);
+      if (typeof onOk === 'function') onOk();
+    };
+    okBtn.addEventListener('click', handler);
   }
 
   function setupKlasifikasiCombobox() {
@@ -502,6 +563,20 @@
 
     loadInitData();
 
+    function setSubmitLoading(isLoading, labelTombol) {
+      const btn = document.getElementById('submitBtn');
+      const spinner = document.getElementById('submitSpinner');
+      const btnText = document.getElementById('submitBtnText');
+      const form = document.getElementById('reqForm');
+
+      btn.disabled = isLoading;
+      spinner.classList.toggle('hidden', !isLoading);
+      if (labelTombol) btnText.textContent = labelTombol;
+
+      form.classList.toggle('opacity-60', isLoading);
+      form.classList.toggle('pointer-events-none', isLoading);
+    }
+
     document.getElementById('reqForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
@@ -514,10 +589,9 @@
       }
 
       const statusEl = document.getElementById('status');
-      const btn = document.getElementById('submitBtn');
       statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter';
-      statusEl.textContent = 'Mengirim permintaan...';
-      btn.disabled = true;
+      statusEl.textContent = 'Diproses, mohon tunggu sebentar...';
+      setSubmitLoading(true, 'Diproses...');
 
       const payload = {
         initData: tg.initData,
@@ -529,11 +603,14 @@
         lampiranBase64: ''
       };
 
+      let statusKode = null;
+
       try {
-        statusEl.textContent = 'Memproses lampiran...';
+        statusEl.textContent = 'Diproses, sedang membaca lampiran...';
         payload.lampiranNamaFile = lampiranFile.name;
         payload.lampiranBase64 = await bacaFileSebagaiBase64(lampiranFile);
-        statusEl.textContent = 'Mengirim permintaan...';
+
+        statusEl.textContent = 'Diproses, mengirim data ke server...';
 
         const formBody = new URLSearchParams();
         Object.entries(payload).forEach(([key, value]) => formBody.append(key, value ?? ''));
@@ -543,6 +620,9 @@
           headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
           body: formBody.toString()
         });
+        statusKode = res.status;
+
+        statusEl.textContent = 'Diproses, menunggu konfirmasi server...';
 
         const responseText = await res.text();
         let data;
@@ -556,22 +636,38 @@
           throw new Error(`HTTP ${res.status}`);
         }
 
-        if (data.success) {
-          statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-emerald-700';
-          statusEl.textContent = data.message || 'Berhasil! Nomor akan dikirim via bot.';
+        statusEl.textContent = '';
+
+        if (statusKode === 200 && data.success) {
+          setSubmitLoading(true, 'Berhasil!');
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-          setTimeout(() => tg.close(), 1500);
+          tampilkanModal({
+            variant: 'success',
+            title: 'Berhasil',
+            message: data.message || 'Data berhasil disimpan.',
+            tombolText: 'OK',
+            onOk: () => tg.close()
+          });
         } else {
-          statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-rose-700';
-          statusEl.textContent = data.message || 'Gagal mengirim permintaan.';
+          setSubmitLoading(false, 'Kirim Permintaan');
           if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
-          btn.disabled = false;
+          tampilkanModal({
+            variant: 'error',
+            title: judulErrorDariStatus(statusKode),
+            message: data.message || 'Gagal mengirim permintaan. Silakan coba lagi.',
+            tombolText: 'OK'
+          });
         }
       } catch (err) {
-        statusEl.className = 'mt-4 text-center text-[13px] font-medium min-h-[20px] status-enter text-rose-700';
-        statusEl.textContent = err?.message || 'Gagal terhubung ke server. Coba lagi.';
+        statusEl.textContent = '';
+        setSubmitLoading(false, 'Kirim Permintaan');
         console.error('LONTAR submit error:', err);
-        btn.disabled = false;
+        tampilkanModal({
+          variant: 'error',
+          title: judulErrorDariStatus(statusKode),
+          message: err?.message || 'Gagal terhubung ke server. Coba lagi.',
+          tombolText: 'OK'
+        });
       }
     });
   }
